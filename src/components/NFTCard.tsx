@@ -1,8 +1,12 @@
 // @ts-nocheck
 
-import React from 'react'
+import React, {useState} from 'react'
 import { GridItem, Card, CardBody, Image, Button, CardFooter, Text, Heading, } from '@chakra-ui/react'
 import NFTModal from './NFTModal'
+import { prepareWriteContract, writeContract, waitForTransaction } from '@wagmi/core'
+import MarketplaceABI from '../artifacts/MarketplaceABI'
+import { toWei } from '../utils/Web3Helpers'
+import { MARKETPLACE_ADDRESS,  FACTORY_ADDRESS} from '../env'
 
 
 const truncate = (word, end) => {
@@ -12,11 +16,36 @@ const truncate = (word, end) => {
     const display = word.slice(0, end) + "..."
     return display
 }
-const NFTCard = ({ item, isListable, isBuyable }) => {
 
 
-    const listingButton = <Button variant='outline' colorScheme='primary'>List</Button>
-    const buyButton = <Button variant='outline' colorScheme='primary'>Buy</Button>
+const NFTCard = ({ item, isBuyable, buyFunction }) => {
+    //state
+    const [buyingState, setBuyingState] = useState(false)
+
+    //handler
+    const handleBuy = async () => {
+        setBuyingState(true)
+        try
+        {
+
+            const buyConfig = await prepareWriteContract({
+                address: MARKETPLACE_ADDRESS,
+                abi: MarketplaceABI.abi,
+                functionName: 'buyItem',
+                args: [FACTORY_ADDRESS, BigInt(item.id)],
+                value : BigInt(toWei(item.price))
+            })
+            const { hash : buyHash } = await writeContract(buyConfig)
+            console.log(buyHash)
+            setBuyingState(false)
+        } catch(error) {
+            console.log(error)
+            setBuyingState(false)
+        }
+    }
+
+
+    const buyButton = <Button variant='outline' colorScheme='primary' isLoading={buyingState} onClick={handleBuy}>Buy</Button>
 
 
     return (
@@ -29,7 +58,8 @@ const NFTCard = ({ item, isListable, isBuyable }) => {
                         borderRadius='lg'
                     />
                     <Heading color='secondary'>
-                        {truncate(item.title, 11)}
+                        {
+                        truncate(item.title, 11)}
                     </Heading>
                     <Text isTruncated color='secondary' fontWeight='500'>
                         {item.price}
@@ -40,7 +70,6 @@ const NFTCard = ({ item, isListable, isBuyable }) => {
                 </CardBody>
                 <CardFooter display='flex' width='75%' justifyContent='space-around'>
                     <NFTModal item={item} />
-                    {isListable && listingButton}
                     {isBuyable && buyButton}
                 </CardFooter>
             </Card>

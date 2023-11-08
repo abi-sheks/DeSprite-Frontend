@@ -1,21 +1,67 @@
 // @ts-nocheck
 
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Heading, Text, Card, CardHeader, CardBody, CardFooter, Image, Button, Grid, GridItem } from '@chakra-ui/react';
 import { NFTCard } from '../components';
 import { items } from '../sampledata';
+import { useAccount } from 'wagmi'
+import { getTokenCount, getTokenOwner, getListing, getUri } from '../utils/Web3Helpers'
+import { readUploadedFileAsText, parseMetadata } from '../utils/FileHelpers'
+import makeStorageClient from '../utils/Web3ClientGetter'
 
 const Dashboard = () => {
+        //state
+        const [ownedAssetsState, setOwnedAssetsState] = useState([])
 
-    console.log(items)
-    const itemList = items.map((item) => {
+        //misc hooks
+        const client = makeStorageClient()
+        const { address, isConnected,
+            // connector
+        } = useAccount()
+
+        useEffect(() => {
+            (async () => {
+                try {
+                    const tokenCount = await getTokenCount()
+                    //ouch
+                    let newAssets = []
+                    for (let i = 1; i <= tokenCount; i++) {
+                        const tokenOwner = await getTokenOwner(i)
+                        const listing = await getListing(i)
+                        console.log(tokenOwner === address)
+                        console.log(listing.seller === address)
+                        if (address && tokenOwner === address && listing.seller !== address) {
+                            const assetUri = await getUri(i);
+                            const res = await client.get(assetUri);
+                            if (res.ok) {
+                                const files = await res?.files()
+                                for (const file of files) {
+                                    if (file.name === "metadata.json") {
+                                        const fileAsText = await readUploadedFileAsText(file);
+                                        const asset = parseMetadata(fileAsText, i)
+                                        newAssets.push(asset)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    setOwnedAssetsState(() => newAssets)
+                } catch (error) {
+                    console.log(error)
+                }
+            })()
+    
+        }, [])
+
+    const ownedAssetsList = ownedAssetsState.map((item) => {
         console.log(item)
         return (
-            <NFTCard item={item} isBuyable={false} isListable={true} />
+            <NFTCard item={item} isBuyable={false} />
         )
     })
-    console.log(itemList)
+
+
     return (
         <div className='container' style={{
             paddingTop: '3rem'
@@ -32,7 +78,7 @@ const Dashboard = () => {
                 // overflow='auto'
 
             >
-                {itemList}
+                {ownedAssetsList}
             </Grid>
         </div >
     )

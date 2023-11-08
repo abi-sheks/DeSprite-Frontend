@@ -6,21 +6,25 @@ import { Heading, Text, Button, Grid, GridItem, FormControl, FormLabel, Input, F
 import { AddIcon } from '@chakra-ui/icons';
 import Dropzone from 'react-dropzone';
 import makeStorageClient from '../utils/Web3ClientGetter';
-import { prepareWriteContract, writeContract } from '@wagmi/core'
+import { prepareWriteContract, writeContract, readContract, waitForTransaction } from '@wagmi/core'
 import NFTFactoryABI from '../artifacts/NFTFactoryABI.js';
+import MarketplaceABI from '../artifacts/MarketplaceABI';
+import { FACTORY_ADDRESS, MARKETPLACE_ADDRESS } from '../env';
+import { toWei } from '../utils/Web3Helpers';
 
 const Mint = () => {
     //state
     const [titleState, setTitleState] = useState('')
     const [descState, setDescState] = useState('')
-    const [priceState, setPriceState] = useState('')
+    const [priceState, setPriceState] = useState(0)
     const [coverState, setCoverState] = useState('');
     const [assetState, setAssetState] = useState([])
+    const [loadingState, setLoadingState] = useState(false)
 
 
     //handler requires this check
-    let isMinting = false
-    const canMint = [titleState, descState, priceState, coverState, assetState].every(Boolean) && !isMinting
+
+    // const canMint = [titleState, descState, priceState, coverState, assetState].every(Boolean) && !isMinting
     //handlers
     const handleTitleChange = (e) => {
         setTitleState(e.target.value)
@@ -41,10 +45,10 @@ const Mint = () => {
             reader.onerror = () => console.log('file reading has failed')
             reader.onload = () => {
                 // Do whatever you want with the file contents
-                const binaryStr = reader.result
-                setCoverState(binaryStr)
+                const dataUri = reader.result
+                setCoverState(dataUri)
             }
-            reader.readAsBinaryString(file)
+            reader.readAsDataURL(file)
         })
     }
     const handleAssetsChange = (acceptedFiles) => {
@@ -53,11 +57,12 @@ const Mint = () => {
     }
 
     const handleMint = async () => {
-        isMinting = true
+        setLoadingState(true)
         const metadata = {
             name: titleState,
             description: descState,
             cover: coverState,
+            price : toWei(priceState),
         }
         //converts metadata to blob
         const metadataBlob = new Blob([JSON.stringify(metadata)], { type: 'application/json' })
@@ -68,21 +73,55 @@ const Mint = () => {
         console.log(cid)
         //cid will be used as tokenUri for the NFT
         try{
-            console.log(typeof NFTFactoryABI)
-            const config = await prepareWriteContract({
-                address: '0x85FFBF439d5F9B1cAd34F982851702Ab5a7ac1Cf',
+            const mintConfig = await prepareWriteContract({
+                address: FACTORY_ADDRESS,
                 abi: NFTFactoryABI.abi,
                 functionName: 'mintNFT',
                 args: [cid],
             })
-            const { hash } = await writeContract(config)
-            console.log(hash)
-            
+            const { hash : mintHash } = await writeContract(mintConfig)
+            console.log(mintHash)
+            //this is the equivalent of .wait in ethers, because this wasnt being called, wagmi wouldnt wait for write to happen and read old values.
+            await waitForTransaction({
+                hash : mintHash,
+              })
+            const nextId = await readContract({
+                address: FACTORY_ADDRESS,
+                abi: NFTFactoryABI.abi,
+                functionName: 'getTokenId',
+            })
+            //transaction is being confirmed too late, so the nextId being returned is in fact one less.
+            console.log(nextId)
+            const approvalConfig = await prepareWriteContract({
+                address : FACTORY_ADDRESS,
+                abi : NFTFactoryABI.abi,
+                functionName : 'approve',
+                args : [MARKETPLACE_ADDRESS, nextId]
+            })
+            const {hash : approvalHash} = await writeContract(approvalConfig)
+            console.log(approvalHash)
+            await waitForTransaction({
+                hash : approvalHash,
+              })
+
+            const listConfig = await prepareWriteContract({
+                address : MARKETPLACE_ADDRESS,
+                abi : MarketplaceABI.abi,
+                functionName : 'listItem',
+                args : [FACTORY_ADDRESS, nextId, toWei(priceState)]
+            })
+            const { hash : listHash } = await writeContract(listConfig)
+            console.log(listHash)
+            await waitForTransaction({
+                hash : listHash,
+              })
+
+              setLoadingState(false)
         } catch(error) {
             console.log(error)
+            setLoadingState(false)
         }
         
-        isMinting = false
 
     }
 
@@ -125,10 +164,10 @@ const Mint = () => {
                                     <FormErrorMessage>Description has to be more than 28 words long.</FormErrorMessage>
                                 )}
                                 <FormLabel>Price</FormLabel>
-                                <Input type='text' value={priceState} onChange={handlePriceChange} />
+                                <Input value={priceState} onChange={handlePriceChange} />
                                 {isPriceValid ? (
                                     <FormHelperText>
-                                        Enter a price of your asset pack in $US. Be reasonable :P
+                                        Enter a price of your asset pack in ether. Be reasonable :P
                                     </FormHelperText>
                                 ) : (
                                     <FormErrorMessage>Price is required.</FormErrorMessage>
@@ -162,7 +201,7 @@ const Mint = () => {
                             </FormControl>
                         </CardBody>
                         <CardFooter>
-                            <Button isLoading={isMinting} colorScheme='primary' variant='solid' size='lg' onClick={handleMint}>Mint</Button>
+                            <Button isLoading={loadingState} colorScheme='primary' variant='solid' size='lg' onClick={handleMint}>Mint</Button>
                         </CardFooter>
                     </Card>
                 </GridItem>

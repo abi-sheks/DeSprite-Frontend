@@ -17,7 +17,7 @@ import {ALCHEMY_API_KEY} from './env.js';
  
 const { chains, publicClient, webSocketPublicClient } = configureChains(
   [sepolia],
-  [alchemyProvider({apiKey :ALCHEMY_API_KEY}), publicProvider()],
+  [alchemyProvider({apiKey : ALCHEMY_API_KEY}), publicProvider()],
 )
 
 const config = createConfig({
@@ -92,14 +92,12 @@ const customTheme = extendTheme({
 })
 
 root.render(
-  <StrictMode>
     <ChakraProvider theme={customTheme}>
       <ColorModeScript />
       <WagmiConfig config={config}>
       <RouterProvider router={router} />
       </WagmiConfig>
     </ChakraProvider>
-  </StrictMode>
 );
 
 // If you want your app to work offline and load faster, you can change
