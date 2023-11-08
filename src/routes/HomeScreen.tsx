@@ -1,47 +1,52 @@
 // @ts-nocheck
 
 
-import React, {useEffect} from 'react'
+import React, { useEffect } from 'react'
 import { Flex, Text, Button } from '@chakra-ui/react';
 import { Outlet, Link } from 'react-router-dom';
-import {useConnect, useAccount, useDisconnect} from 'wagmi'
+import { useConnect, useAccount, useDisconnect } from 'wagmi'
 
 
-const addressDisplay = (address : string) => {
-    return `${address.slice(0, 8)}...${address.slice(34 ,42)}`
+const addressDisplay = (address: string) => {
+    return `${address.slice(0, 8)}...${address.slice(34, 42)}`
 }
 
 const HomeScreen = () => {
     const { connect, connectors, error, isLoading, pendingConnector } = useConnect()
-    const {address, isConnected, 
+    const { address, isConnected,
         // connector
     } = useAccount()
-    const {disconnect} = useDisconnect()
+    const { disconnect } = useDisconnect()
 
     const handleConnect = () => {
         connectors.map(connector => {
             //only metamask support
-            connect({connector})
+            connect({ connector })
         })
+        localStorage.setItem('userAddress', address)
+    }
+
+    const handleDisconnect = () => {
+        localStorage.clear();
+        disconnect()
     }
 
     useEffect(() => {
         handleConnect()
     }, [])
 
-    const connectedAvatar = isConnected ? <Text color='secondary' paddingTop='0.5rem' marginRight='1rem' >{addressDisplay(address)}</Text> : 
-                            <Button variant='solid' colorScheme='primary' onClick={handleConnect}>Connect</Button>
+    const connectedAvatar = isConnected ? <Text color='secondary' paddingTop='0.5rem' marginRight='1rem' >{addressDisplay(address)}</Text> :
+        <Button variant='solid' colorScheme='primary' onClick={handleConnect}>Connect</Button>
 
     return (
         <div style={{
             height: '100%',
             width: '100%',
-            display : 'flex',
-            flexDirection : 'column',
+            display: 'flex',
+            flexDirection: 'column',
             backgroundColor: 'black',
         }}>
             <Flex direction='row' bg='tertiary' padding='1.5rem' justifyContent='space-between' width='100%'>
-
                 <Flex justifyContent='space-between' width='50%'>
 
                     <Text color='secondary' as={Link} to='/home'>DeSprite</Text>
@@ -60,7 +65,7 @@ const HomeScreen = () => {
                 </Flex>
                 <Flex>
                     {connectedAvatar}
-                    <Button variant='solid' colorScheme='primary' onClick={disconnect}>Disconnect</Button>
+                    <Button variant='solid' colorScheme='primary' onClick={handleDisconnect}>Disconnect</Button>
                 </Flex>
             </Flex>
             <Outlet />
