@@ -2,7 +2,7 @@
 
 
 import React, { useEffect, useState } from 'react'
-import { Grid, Heading, getToken } from '@chakra-ui/react'
+import { Grid, Heading, Flex, CircularProgress, useToast } from '@chakra-ui/react'
 import { NFTCard } from '../components'
 import { useAccount } from 'wagmi'
 import makeStorageClient from '../utils/Web3ClientGetter'
@@ -14,12 +14,18 @@ import { parseMetadata, readUploadedFileAsText } from '../utils/FileHelpers'
 
 
 const OwnListings = () => {
+    //state
+    const [listedAssetsState, setListedAssetsState] = useState([])
+    const [isLoadingState, setIsLoadingState] = useState(true)
+
+
+
+    //misc hooks
+    const toast = useToast()
     const client = makeStorageClient()
     const { address, isConnected,
         // connector
     } = useAccount()
-    const [listedAssetsState, setListedAssetsState] = useState([])
-
     //bad algo, optimize or change smart contract getter.
     //perhaps less expensive to do it here only?
     //first gets total no of NFTs, checks if the owner of each tokenId mapped tokenUri is the logged in address, then gets NFT corresponding to tokenUri.
@@ -30,6 +36,7 @@ const OwnListings = () => {
 
     useEffect(() => {
         (async () => {
+            setIsLoadingState(true)
             try {
                 const tokenCount = await getTokenCount()
                 //ouch
@@ -47,7 +54,7 @@ const OwnListings = () => {
                             for (const file of files) {
                                 if (file.name === "metadata.json") {
                                     const fileAsText = await readUploadedFileAsText(file);
-                                    const asset = parseMetadata(fileAsText, i)
+                                    const asset = parseMetadata(fileAsText, i, assetUri, listing.price);
                                     newAssets.push(asset)
                                 }
                             }
@@ -57,22 +64,36 @@ const OwnListings = () => {
                 setListedAssetsState(() => newAssets)
             } catch (error) {
                 console.log(error)
+                toast(
+                    {
+                        title: 'Error',
+                        description: "Your listings could not be retrieved. Try again.",
+                        status: 'error',
+                        duration: 3000,
+                        isClosable: true,
+                    }
+                )
             }
+            setIsLoadingState(false)
         })()
 
-    }, [])
+    }, [address])
 
     listedAssets = listedAssetsState.map(asset => {
-        console.log(`Asset is ${asset}`)
         return (
-            <NFTCard item={asset} isBuyable={false}/>
+            <NFTCard item={asset} isBuyable={false} isListing={true}/>
         )
     })
 
-
-    return (
-        <div className='container' style={{ paddingTop: '3rem' }}>
-            <Heading color='secondary'>Assets you've listed for sale</Heading>
+    let content
+    if (isLoadingState) {
+        content = (
+            <Flex marginTop='2rem' width='100%' height='100%' justify='center'>
+                <CircularProgress isIndeterminate color="#D4AF37" size='8rem' />
+            </Flex>
+        )
+    } else {
+        content = (
             <Grid marginTop='2rem'
                 width='100%'
                 flexGrow={1}
@@ -80,6 +101,15 @@ const OwnListings = () => {
                 gap={4}>
                 {listedAssets}
             </Grid>
+        )
+
+    }
+
+
+    return (
+        <div className='container' style={{ paddingTop: '3rem' }}>
+            <Heading color='secondary'>Assets you've listed for sale</Heading>
+            {content}
         </div>
     )
 }

@@ -12,7 +12,7 @@ import { WagmiConfig, createConfig, configureChains, sepolia } from 'wagmi'
 import { publicProvider } from 'wagmi/providers/public'
 import {alchemyProvider} from 'wagmi/providers/alchemy'
 import { MetaMaskConnector } from 'wagmi/connectors/metaMask'
-import {ALCHEMY_API_KEY} from './env.js';
+import {ALCHEMY_API_KEY} from './env';
 
  
 const { chains, publicClient, webSocketPublicClient } = configureChains(

@@ -1,10 +1,10 @@
 // @ts-nocheck
 
 
-import React, {useState, useEffect} from 'react'
-import { Grid, Heading } from '@chakra-ui/react'
+import React, { useState, useEffect } from 'react'
+import { Grid, Heading, CircularProgress, Flex, useToast } from '@chakra-ui/react'
 import { NFTCard } from '../components'
-import { items } from '../sampledata' 
+import { items } from '../sampledata'
 import { useAccount } from 'wagmi'
 import { getTokenCount, getTokenOwner, getListing, getUri } from '../utils/Web3Helpers'
 import { readUploadedFileAsText, parseMetadata } from '../utils/FileHelpers'
@@ -14,18 +14,21 @@ import makeStorageClient from '../utils/Web3ClientGetter'
 const BuyListings = () => {
     //state
     const [buyableAssetsState, setBuyableAssetsState] = useState([])
+    const [isLoadingState, setIsLoadingState] = useState(true)
 
     //misc hooks
     const client = makeStorageClient()
     const { address, isConnected,
         // connector
     } = useAccount()
+    const toast = useToast()
 
 
 
 
     useEffect(() => {
         (async () => {
+            setIsLoadingState(true)
             try {
                 const tokenCount = await getTokenCount()
                 //ouch
@@ -45,7 +48,7 @@ const BuyListings = () => {
                             for (const file of files) {
                                 if (file.name === "metadata.json") {
                                     const fileAsText = await readUploadedFileAsText(file);
-                                    const asset = parseMetadata(fileAsText, i)
+                                    const asset = parseMetadata(fileAsText, i, assetUri, listing.price)
                                     newAssets.push(asset)
                                 }
                             }
@@ -55,28 +58,50 @@ const BuyListings = () => {
                 setBuyableAssetsState(() => newAssets)
             } catch (error) {
                 console.log(error)
+                toast(
+                    {
+                        title: 'Error',
+                        description: "The marketplace could not be retrieved. Try again.",
+                        status: 'error',
+                        duration: 3000,
+                        isClosable: true,
+                    }
+                )
             }
+            setIsLoadingState(false)
         })()
 
-    }, [])
+    }, [address])
 
-    const buyableAssets = buyableAssetsState.map(asset => {
-        console.log(`Asset is ${asset}`)
-        return (
-            <NFTCard item={asset} isBuyable={true} />
+    let content
+    if (isLoadingState) {
+        content = (
+            <Flex marginTop='2rem' width='100%' height='100%' justify='center'>
+                <CircularProgress isIndeterminate color="#D4AF37" size='8rem' />
+            </Flex>
         )
-    })
-
-    return (
-        <div className='container' style={{paddingTop : '3rem'}}>
-            <Heading color='secondary'>Buy assets</Heading>
+    } else {
+        content = (
             <Grid marginTop='2rem'
                 width='100%'
                 flexGrow={1}
                 templateColumns='repeat(5, 1fr)'
                 gap={4}>
-                    {buyableAssets}
+                {buyableAssetsState.map(asset => {
+                    console.log(`Asset is ${asset}`)
+                    return (
+                        <NFTCard item={asset} isBuyable={true} isListing={false} />
+                    )
+                })}
             </Grid>
+        )
+    }
+
+    return (
+        <div className='container' style={{ paddingTop: '3rem' }}>
+            <Heading color='secondary'>Buy assets</Heading>
+            {content}
+
         </div>
     )
 }

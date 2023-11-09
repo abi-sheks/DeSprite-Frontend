@@ -48,8 +48,7 @@ const HomeScreen = () => {
         }}>
             <Flex direction='row' bg='tertiary' padding='1.5rem' justifyContent='space-between' width='100%'>
                 <Flex justifyContent='space-between' width='50%'>
-
-                    <Text color='secondary' as={Link} to='/home'>DeSprite</Text>
+                    <Text color='secondary' as={Link} to='/home' fontSize='1.5rem' fontFamily='Kenia'>DeSprite</Text>
                     <Flex direction='row' justifyContent='center' grow={1}>
                         <Text as={Link} to='/home/marketplace/own' marginX='3rem' color='secondary'>
                             Marketplace

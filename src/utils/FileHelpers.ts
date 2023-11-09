@@ -1,14 +1,15 @@
 // @ts-nocheck
 
 import { fromWei } from "./Web3Helpers";
-export const parseMetadata = (fileAsText, tokenId) => {
+export const parseMetadata = (fileAsText, tokenId, uri, price) => {
     const metadata = JSON.parse(fileAsText);
      return {
         title: metadata.name,
         description: metadata.description,
-        price: fromWei(metadata.price),
+        price: fromWei(Number(price)),
         imageUri: metadata.cover,
         id: tokenId,
+        uri : uri,
     }
 }
 export const readUploadedFileAsText = (inputFile) => {

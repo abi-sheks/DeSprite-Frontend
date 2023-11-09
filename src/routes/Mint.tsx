@@ -2,7 +2,7 @@
 
 
 import React, { useState } from 'react'
-import { Heading, Text, Button, Grid, GridItem, FormControl, FormLabel, Input, FormHelperText, FormErrorMessage, Card, CardBody, CardHeader, CardFooter, Box } from '@chakra-ui/react';
+import { Heading, Text, Button, Grid, GridItem, FormControl, FormLabel, Input, FormHelperText, FormErrorMessage, Card, CardBody, CardHeader, CardFooter, Box, useToast } from '@chakra-ui/react';
 import { AddIcon } from '@chakra-ui/icons';
 import Dropzone from 'react-dropzone';
 import makeStorageClient from '../utils/Web3ClientGetter';
@@ -21,10 +21,9 @@ const Mint = () => {
     const [assetState, setAssetState] = useState([])
     const [loadingState, setLoadingState] = useState(false)
 
+    const toast = useToast()
 
-    //handler requires this check
-
-    // const canMint = [titleState, descState, priceState, coverState, assetState].every(Boolean) && !isMinting
+    const canMint = [titleState, descState, priceState, coverState, assetState].every(Boolean)
     //handlers
     const handleTitleChange = (e) => {
         setTitleState(e.target.value)
@@ -62,7 +61,6 @@ const Mint = () => {
             name: titleState,
             description: descState,
             cover: coverState,
-            price : toWei(priceState),
         }
         //converts metadata to blob
         const metadataBlob = new Blob([JSON.stringify(metadata)], { type: 'application/json' })
@@ -72,19 +70,19 @@ const Mint = () => {
         const cid = await client.put([...assetState, new File([metadataBlob], 'metadata.json')], { name: titleState })
         console.log(cid)
         //cid will be used as tokenUri for the NFT
-        try{
+        try {
             const mintConfig = await prepareWriteContract({
                 address: FACTORY_ADDRESS,
                 abi: NFTFactoryABI.abi,
                 functionName: 'mintNFT',
                 args: [cid],
             })
-            const { hash : mintHash } = await writeContract(mintConfig)
+            const { hash: mintHash } = await writeContract(mintConfig)
             console.log(mintHash)
             //this is the equivalent of .wait in ethers, because this wasnt being called, wagmi wouldnt wait for write to happen and read old values.
             await waitForTransaction({
-                hash : mintHash,
-              })
+                hash: mintHash,
+            })
             const nextId = await readContract({
                 address: FACTORY_ADDRESS,
                 abi: NFTFactoryABI.abi,
@@ -93,36 +91,51 @@ const Mint = () => {
             //transaction is being confirmed too late, so the nextId being returned is in fact one less.
             console.log(nextId)
             const approvalConfig = await prepareWriteContract({
-                address : FACTORY_ADDRESS,
-                abi : NFTFactoryABI.abi,
-                functionName : 'approve',
-                args : [MARKETPLACE_ADDRESS, nextId]
+                address: FACTORY_ADDRESS,
+                abi: NFTFactoryABI.abi,
+                functionName: 'approve',
+                args: [MARKETPLACE_ADDRESS, nextId]
             })
-            const {hash : approvalHash} = await writeContract(approvalConfig)
+            const { hash: approvalHash } = await writeContract(approvalConfig)
             console.log(approvalHash)
             await waitForTransaction({
-                hash : approvalHash,
-              })
+                hash: approvalHash,
+            })
 
             const listConfig = await prepareWriteContract({
-                address : MARKETPLACE_ADDRESS,
-                abi : MarketplaceABI.abi,
-                functionName : 'listItem',
-                args : [FACTORY_ADDRESS, nextId, toWei(priceState)]
+                address: MARKETPLACE_ADDRESS,
+                abi: MarketplaceABI.abi,
+                functionName: 'listItem',
+                args: [FACTORY_ADDRESS, nextId, toWei(priceState)]
             })
-            const { hash : listHash } = await writeContract(listConfig)
+            const { hash: listHash } = await writeContract(listConfig)
             console.log(listHash)
             await waitForTransaction({
-                hash : listHash,
-              })
-
-              setLoadingState(false)
-        } catch(error) {
+                hash: listHash,
+            })
+            toast(
+                {
+                    title: 'Success!',
+                    description: "Your assets have been successfully published as an NFT. Go to your listings to view them.",
+                    status: 'success',
+                    duration: 3000,
+                    isClosable: true,
+                }
+            )
+            setLoadingState(false)
+        } catch (error) {
             console.log(error)
+            toast(
+                {
+                    title: 'Error',
+                    description: "Your NFT could not be minted. Please try again later.",
+                    status: 'error',
+                    duration: 3000,
+                    isClosable: true,
+                }
+            )
             setLoadingState(false)
         }
-        
-
     }
 
     const isTitleEmpty = titleState === ''
@@ -135,7 +148,7 @@ const Mint = () => {
                 <GridItem display='flex' flexDirection='column' height='100%' padding='4rem' alignItems='center' colSpan={1}>
                     <Heading color='secondary'>Mint your game assets as an NFT.</Heading>
                     <Text color='secondary'>
-                        Upload your games assets as a spritesheet. Image assets are currently supported.
+                        Upload your games assets as a spritesheet. All assets are currently supported.
                     </Text>
                 </GridItem>
                 <GridItem colSpan={2} className='hor-align' height='100%' justifyContent='center'>

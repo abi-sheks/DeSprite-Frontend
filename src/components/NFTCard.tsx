@@ -7,6 +7,8 @@ import { prepareWriteContract, writeContract, waitForTransaction } from '@wagmi/
 import MarketplaceABI from '../artifacts/MarketplaceABI'
 import { toWei } from '../utils/Web3Helpers'
 import { MARKETPLACE_ADDRESS,  FACTORY_ADDRESS} from '../env'
+import UpdateModal from './UpdateModal'
+
 
 
 const truncate = (word, end) => {
@@ -18,9 +20,11 @@ const truncate = (word, end) => {
 }
 
 
-const NFTCard = ({ item, isBuyable, buyFunction }) => {
+const NFTCard = (props) => {
+    const {item, isBuyable, isListing} = props;
     //state
     const [buyingState, setBuyingState] = useState(false)
+    const [updatingState, setUpdatingState] = useState(false)
 
     //handler
     const handleBuy = async () => {
@@ -37,13 +41,13 @@ const NFTCard = ({ item, isBuyable, buyFunction }) => {
             })
             const { hash : buyHash } = await writeContract(buyConfig)
             console.log(buyHash)
+            await waitForTransaction({hash : buyHash})
             setBuyingState(false)
         } catch(error) {
             console.log(error)
             setBuyingState(false)
         }
     }
-
 
     const buyButton = <Button variant='outline' colorScheme='primary' isLoading={buyingState} onClick={handleBuy}>Buy</Button>
 
@@ -69,8 +73,9 @@ const NFTCard = ({ item, isBuyable, buyFunction }) => {
                     </Text>
                 </CardBody>
                 <CardFooter display='flex' width='75%' justifyContent='space-around'>
-                    <NFTModal item={item} />
+                    <NFTModal {...props} />
                     {isBuyable && buyButton}
+                    <UpdateModal {...props} />
                 </CardFooter>
             </Card>
         </GridItem>
