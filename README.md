@@ -3,6 +3,8 @@ DeSprite is a proof of concept/MVP for a decentralised game assets marketplace w
 This is the frontend for the app.
 ## Setup
 - Clone the repo and ```cd``` into it.
-- The app is bootstrapped with Create-React-App. Run it on your local using ```npm start``` and view it on http://localhost:3000
+- The app is bootstrapped with Create-React-App.
+- Install dependencies using ```npm install```
+- Run it on your local using ```npm start``` and view it on http://localhost:3000
 - ***Note*** : the app currently supports the [Metamask](https://metamask.io/) wallet, so make sure you have that setup.
 
